@@ -19,6 +19,9 @@ llm = ChatGroq(temperature=0, model_name="llama-3.1-8b-instant", groq_api_key=se
 # 1. Intent Detection
 def detect_intent(state: AgentState):
     user_message = state["messages"][-1].content
+    if "clear" in user_message.lower() and len(user_message.strip()) < 30:
+        return {"intent": "clear_interaction"}
+
     prompt = f"""
     Determine the intent of the following message from a pharma rep.
     Choose exactly one intent from this list:
@@ -34,9 +37,23 @@ def detect_intent(state: AgentState):
     """
     response = llm.invoke([HumanMessage(content=prompt)])
     intent = response.content.strip().lower()
-    if intent not in ["log_interaction", "edit_interaction", "generate_actions", "generate_summary", "generate_email", "clear_interaction"]:
-        intent = "log_interaction" # fallback
-    return {"intent": intent}
+    valid_intents = ["log_interaction", "edit_interaction", "generate_actions", "generate_summary", "generate_email", "clear_interaction"]
+    for v_intent in valid_intents:
+        if v_intent in intent:
+            return {"intent": v_intent}
+    return {"intent": "log_interaction"}
+
+import re
+def parse_json_response(content: str) -> dict:
+    match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+    if match:
+        try: return json.loads(match.group(1))
+        except: pass
+    match = re.search(r'\{.*\}', content, re.DOTALL)
+    if match:
+        try: return json.loads(match.group(0))
+        except: pass
+    return {}
 
 # 2. Tool Execution functions
 def tool_log_interaction(state: AgentState):
@@ -60,10 +77,7 @@ def tool_log_interaction(state: AgentState):
     Return ONLY a valid JSON object. Do not include markdown formatting or explanations.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
-    try:
-        data = json.loads(response.content.replace("```json", "").replace("```", "").strip())
-    except:
-        data = {}
+    data = parse_json_response(response.content)
     
     updated_form = {**state.get("current_form", {}), **data}
     reply = "**Interaction logged successfully!** The details have been automatically populated based on your summary. Would you like me to suggest a specific follow-up action?"
@@ -81,10 +95,7 @@ def tool_edit_interaction(state: AgentState):
     Return ONLY a valid JSON object with the fields to update.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
-    try:
-        data = json.loads(response.content.replace("```json", "").replace("```", "").strip())
-    except:
-        data = {}
+    data = parse_json_response(response.content)
     
     updated_form = {**current_form, **data}
     reply = "I've updated those specific fields. The rest of the form remains untouched."
@@ -268,7 +279,12 @@ def process_chat(message: str, current_form: dict):
             "form_data": result.get("current_form", current_form)
         }
     except Exception as e:
+        error_msg = str(e)
+        if "model_decommissioned" in error_msg or "400" in error_msg:
+            friendly_msg = "Oops! Our AI assistant is currently undergoing an upgrade and the model is temporarily unavailable. Please try again in a few moments."
+        else:
+            friendly_msg = "We encountered a temporary connection issue. Please try again later."
         return {
-            "reply": f"An error occurred: {str(e)}",
+            "reply": friendly_msg,
             "form_data": current_form
         }

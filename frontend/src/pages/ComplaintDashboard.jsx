@@ -12,7 +12,7 @@ export default function ComplaintDashboard() {
         </div>
         
         {/* Right Panel */}
-        <div className="w-[500px] bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
+        <div className="w-[450px] bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
           <ComplaintIntakeAssistant />
         </div>
       </div>

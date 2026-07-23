@@ -46,7 +46,7 @@ def node_extract_details(state: IntakeState):
     Document text:
     {raw_text}
     
-    Return ONLY a valid JSON object. Do not include markdown formatting or explanations.
+    Return ONLY a valid JSON object. Do not include markdown formatting, code blocks, or explanations.
     Ensure keys match the requested fields exactly.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
@@ -67,7 +67,7 @@ def node_risk_assessment(state: IntakeState):
     - suggested_action (What to do immediately)
     - confidence_score (Float between 0.0 and 1.0)
     
-    Return ONLY a valid JSON object.
+    Return ONLY a valid JSON object. Do not include markdown formatting, code blocks, or explanations. Ensure confidence_score is a valid number, not a string or percentage.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
     data = parse_json_response(response.content)
@@ -85,11 +85,15 @@ def node_summary_capa(state: IntakeState):
     - root_cause (3 likely root causes)
     - capa (Suggested Corrective and Preventive Actions)
     
-    Return ONLY a valid JSON object with keys "root_cause" and "capa".
+    Return ONLY a valid JSON object with keys "root_cause" and "capa". The values should be an Array of strings. Do not include markdown formatting, code blocks, or explanations.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
     try:
-        data = json.loads(response.content.replace("```json", "").replace("```", "").strip())
+        data = parse_json_response(response.content)
+        if isinstance(data.get("root_cause"), list):
+            data["root_cause"] = "\n".join([f"- {item}" for item in data["root_cause"]])
+        if isinstance(data.get("capa"), list):
+            data["capa"] = "\n".join([f"- {item}" for item in data["capa"]])
     except:
         data = {}
     

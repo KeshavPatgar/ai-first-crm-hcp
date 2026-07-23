@@ -32,6 +32,7 @@ def detect_intent(state: ComplaintAgentState):
     - summarize_complaint (generating a brief summary of the complaint)
     - clear_complaint (resetting or clearing the form)
     - duplicate_check (check for duplicate complaints)
+    - general_chat (answering questions like "is it expired?", "what is the batch?", or any general conversation)
 
     Message: {user_message}
     Output only the exact intent string, nothing else.
@@ -42,13 +43,13 @@ def detect_intent(state: ComplaintAgentState):
     valid_intents = [
         "log_complaint", "edit_complaint", "check_completeness", 
         "recommend_root_cause", "recommend_capa", "summarize_complaint", 
-        "clear_complaint", "duplicate_check", "generate_risk"
+        "clear_complaint", "duplicate_check", "generate_risk", "general_chat"
     ]
     for v_intent in valid_intents:
         if v_intent in intent:
             return {"intent": v_intent}
             
-    return {"intent": "log_complaint"}
+    return {"intent": "general_chat"}
 
 import re
 
@@ -95,8 +96,8 @@ def tool_log_complaint(state: ComplaintAgentState):
 
     Message: {user_message}
     
-    Return ONLY a valid JSON object. Do not include markdown formatting or explanations.
-    Ensure keys match the requested fields exactly.
+    Return ONLY a valid JSON object. Do not include markdown formatting, code blocks, or explanations.
+    Ensure keys match the requested fields exactly. Ensure confidence_score is a valid number, not a string or percentage.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
     data = parse_json_response(response.content)
@@ -145,7 +146,7 @@ def tool_generate_risk(state: ComplaintAgentState):
     - suggested_action (What to do immediately)
     - confidence_score (Float between 0.0 and 1.0)
     
-    Return ONLY a valid JSON object.
+    Return ONLY a valid JSON object. Do not include markdown formatting, code blocks, or explanations. Ensure confidence_score is a valid number, not a string or percentage.
     """
     response = llm.invoke([HumanMessage(content=prompt)])
     data = parse_json_response(response.content)
@@ -216,6 +217,24 @@ def tool_clear_complaint(state: ComplaintAgentState):
     }
     return {"current_form": empty_form, "reply": "The complaint form has been cleared."}
 
+def tool_answer_question(state: ComplaintAgentState):
+    user_message = state["messages"][-1].content
+    current_form = state.get("current_form", {})
+    prompt = f"""
+    You are an AI assistant helping a Quality Assurance agent with a customer complaint.
+    The user is asking a question about the current complaint details.
+    
+    Current Form Data:
+    {json.dumps(current_form)}
+    
+    User Question: {user_message}
+    
+    Answer the question intelligently based strictly on the provided complaint details.
+    Keep your answer concise, conversational, and helpful. Do not output JSON.
+    """
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return {"reply": response.content}
+
 # Routing function
 def route_intent(state: ComplaintAgentState):
     intent = state.get("intent")
@@ -227,7 +246,8 @@ def route_intent(state: ComplaintAgentState):
         "summarize_complaint": "tool_summarize_complaint",
         "duplicate_check": "tool_duplicate_check",
         "clear_complaint": "tool_clear_complaint",
-        "generate_risk": "tool_generate_risk"
+        "generate_risk": "tool_generate_risk",
+        "general_chat": "tool_answer_question"
     }
     return routes.get(intent, "tool_log_complaint")
 
@@ -244,13 +264,14 @@ workflow.add_node("tool_summarize_complaint", tool_summarize_complaint)
 workflow.add_node("tool_duplicate_check", tool_duplicate_check)
 workflow.add_node("tool_clear_complaint", tool_clear_complaint)
 workflow.add_node("tool_generate_risk", tool_generate_risk)
+workflow.add_node("tool_answer_question", tool_answer_question)
 
 workflow.set_entry_point("detect_intent")
 workflow.add_conditional_edges("detect_intent", route_intent)
 
 for node in ["tool_log_complaint", "tool_edit_complaint", "tool_check_completeness", 
              "tool_recommend_root_cause", "tool_recommend_capa", "tool_summarize_complaint", 
-             "tool_duplicate_check", "tool_clear_complaint", "tool_generate_risk"]:
+             "tool_duplicate_check", "tool_clear_complaint", "tool_generate_risk", "tool_answer_question"]:
     workflow.add_edge(node, END)
 
 complaint_app = workflow.compile()

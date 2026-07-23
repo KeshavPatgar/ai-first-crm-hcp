@@ -80,6 +80,23 @@ def complaint_chat_endpoint(request: complaint_schemas.ChatRequestComplaint):
 
 @app.post("/api/complaints/commit", response_model=complaint_schemas.Complaint)
 def create_complaint(complaint: complaint_schemas.ComplaintCreate, db: Session = Depends(get_db)):
+    # Check for duplicates based on batch_number and product_name, or exact description match
+    if complaint.description:
+        duplicate = db.query(complaint_models.Complaint).filter(
+            complaint_models.Complaint.description == complaint.description
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Duplicate Complaint Detected: A complaint with this exact description already exists.")
+            
+    if complaint.batch_number and complaint.product_name:
+        duplicate = db.query(complaint_models.Complaint).filter(
+            complaint_models.Complaint.batch_number == complaint.batch_number,
+            complaint_models.Complaint.product_name == complaint.product_name,
+            complaint_models.Complaint.customer_name == complaint.customer_name
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Duplicate Complaint Detected: A complaint for this product and batch from this customer already exists.")
+
     db_complaint = complaint_models.Complaint(**complaint.model_dump())
     db.add(db_complaint)
     db.commit()

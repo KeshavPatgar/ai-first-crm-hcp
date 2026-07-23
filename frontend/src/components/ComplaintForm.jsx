@@ -21,15 +21,29 @@ export default function ComplaintForm() {
     setIsSaving(true)
     setSaveMessage('')
     try {
-      const payload = { ...form, ...risk }
+      let payload = { ...form, ...risk }
+      
+      // Sanitize confidence_score to ensure it's a valid float
+      if (payload.confidence_score !== undefined && payload.confidence_score !== null) {
+        let parsed = parseFloat(String(payload.confidence_score).replace(/[^0-9.]/g, ''))
+        payload.confidence_score = isNaN(parsed) ? null : (parsed > 1 ? parsed / 100 : parsed)
+      }
+
       await axios.post('http://localhost:8000/api/complaints/commit', payload)
       setSaveMessage('Committed successfully!')
     } catch (error) {
       console.error(error)
-      setSaveMessage('Error committing complaint.')
+      const details = error.response?.data?.detail
+      let errorMsg = 'Error committing complaint.'
+      if (Array.isArray(details) && details.length > 0) {
+        errorMsg = `Error: ${details[0].msg} (${details[0].loc?.join('.')})`
+      } else if (typeof details === 'string') {
+        errorMsg = details
+      }
+      setSaveMessage(errorMsg)
     } finally {
       setIsSaving(false)
-      setTimeout(() => setSaveMessage(''), 3000)
+      setTimeout(() => setSaveMessage(''), 5000)
     }
   }
 

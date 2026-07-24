@@ -11,3 +11,5 @@ python-dotenv
 python-multipart
 PyPDF2
 python-docx
+# Deployment: Postgres driver required when DATABASE_URL points to Render Postgres
+psycopg2-binary

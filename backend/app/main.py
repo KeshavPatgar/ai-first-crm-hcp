@@ -11,6 +11,7 @@ from app.schemas import interaction as interaction_schemas
 from app.schemas import complaint as complaint_schemas
 from app.services.agent import process_chat
 from app.services.complaint_agent import process_complaint_chat
+from app.core.config import settings
 
 # Create DB tables
 interaction_models.Base.metadata.create_all(bind=engine)
@@ -18,10 +19,17 @@ complaint_models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI First CRM & QA Module", version="1.1.0")
 
+# Deployment: CORS origins from CORS_ORIGINS env var (comma-separated frontend URLs).
+# Old (local development — wildcard origin with credentials, invalid in browsers):
+# allow_origins=["*"], allow_credentials=True
+_cors_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
+_allow_all_origins = len(_cors_origins) == 1 and _cors_origins[0] == "*"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins if not _allow_all_origins else ["*"],
+    # Wildcard origin cannot be used with credentials (browser CORS spec)
+    allow_credentials=not _allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

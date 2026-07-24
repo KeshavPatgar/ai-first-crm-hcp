@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { updateForm } from '../redux/interactionSlice'
 import { Search, Plus, Mic, Save } from 'lucide-react'
 import axios from 'axios'
+import { API_URL } from '../config/api'
 
 export default function InteractionForm() {
   const form = useSelector((state) => state.interaction)
@@ -18,7 +19,9 @@ export default function InteractionForm() {
     setIsSaving(true)
     setSaveMessage('')
     try {
-      await axios.post('http://localhost:8000/api/interaction/', form)
+      // Old (local development):
+      // await axios.post('http://localhost:8000/api/interaction/', form)
+      await axios.post(`${API_URL}/api/interaction/`, form)
       setSaveMessage('Saved successfully!')
     } catch (error) {
       console.error(error)

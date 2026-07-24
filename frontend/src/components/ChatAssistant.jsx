@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Bot, CheckCircle2 } from 'lucide-react'
 import axios from 'axios'
+import { API_URL } from '../config/api'
 import { addMessage, setTyping } from '../redux/chatSlice'
 import { updateForm } from '../redux/interactionSlice'
 
@@ -30,7 +31,9 @@ export default function ChatAssistant() {
     dispatch(setTyping(true))
 
     try {
-      const res = await axios.post('http://localhost:8000/api/chat/', {
+      // Old (local development):
+      // const res = await axios.post('http://localhost:8000/api/chat/', {
+      const res = await axios.post(`${API_URL}/api/chat/`, {
         message: userMsg.text,
         current_form: form
       })

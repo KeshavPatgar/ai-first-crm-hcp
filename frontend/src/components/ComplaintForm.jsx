@@ -4,6 +4,7 @@ import { clearComplaintForm } from '../redux/complaintSlice'
 import { clearRiskAssessment } from '../redux/riskSlice'
 import { Save, AlertTriangle } from 'lucide-react'
 import axios from 'axios'
+import { API_URL } from '../config/api'
 
 export default function ComplaintForm() {
   const form = useSelector((state) => state.complaint)
@@ -29,7 +30,9 @@ export default function ComplaintForm() {
         payload.confidence_score = isNaN(parsed) ? null : (parsed > 1 ? parsed / 100 : parsed)
       }
 
-      await axios.post('http://localhost:8000/api/complaints/commit', payload)
+      // Old (local development):
+      // await axios.post('http://localhost:8000/api/complaints/commit', payload)
+      await axios.post(`${API_URL}/api/complaints/commit`, payload)
       setSaveMessage('Committed successfully!')
     } catch (error) {
       console.error(error)

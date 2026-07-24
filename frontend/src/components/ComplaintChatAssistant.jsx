@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Bot, CheckCircle2, UploadCloud } from 'lucide-react'
 import axios from 'axios'
+import { API_URL } from '../config/api'
 import { addComplaintMessage, setComplaintTyping } from '../redux/qaChatSlice'
 import { updateComplaintForm } from '../redux/complaintSlice'
 import { updateRiskAssessment } from '../redux/riskSlice'
@@ -37,7 +38,9 @@ export default function ComplaintChatAssistant() {
 
     try {
       const current_form = { ...form, ...risk }
-      const res = await axios.post('http://localhost:8000/api/complaints/chat', {
+      // Old (local development):
+      // const res = await axios.post('http://localhost:8000/api/complaints/chat', {
+      const res = await axios.post(`${API_URL}/api/complaints/chat`, {
         message: userMsg.text,
         current_form: current_form
       })
@@ -100,7 +103,9 @@ export default function ComplaintChatAssistant() {
     formData.append("file", file)
 
     try {
-      const res = await axios.post('http://localhost:8000/api/complaints/upload', formData, {
+      // Old (local development):
+      // const res = await axios.post('http://localhost:8000/api/complaints/upload', formData, {
+      const res = await axios.post(`${API_URL}/api/complaints/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       const extractedText = res.data.extracted_text

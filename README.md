@@ -38,14 +38,16 @@ The application utilizes an **AI-First UX split-screen architecture** to handle 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19**
+- **React 18**
 - **Redux Toolkit** (Global State Management)
 - **Vite** (Asset Bundler)
 - **Tailwind CSS** (Styling)
+- **Axios** (HTTP Client)
 
 ### Backend
-- **Python**
+- **Python 3.11+**
 - **FastAPI** (ASGI Framework)
+- **SQLAlchemy** (Database ORM — SQLite locally, Postgres in production)
 - **LangGraph** (Agentic Workflow Framework)
 - **Groq Cloud API** (`llama-3.1-8b-instant`)
 - **PyPDF2 & Python-Docx** (Document Processing)
@@ -55,24 +57,37 @@ The application utilizes an **AI-First UX split-screen architecture** to handle 
 ## 📁 Project Structure
 
 ```text
-aivoa-crm-app/
+ai-first-crm-hcp/
 ├── backend/
-│   ├── main.py                          # FastAPI application entrypoint & API routing
+│   ├── main.py                          # Uvicorn entrypoint wrapper
 │   ├── app/
+│   │   ├── main.py                      # FastAPI application & API routing
+│   │   ├── core/
+│   │   │   ├── config.py                # Environment settings (DATABASE_URL, CORS, Groq)
+│   │   │   └── database.py              # SQLAlchemy engine & session
+│   │   ├── models/                      # Interaction & Complaint database models
+│   │   ├── schemas/                     # Pydantic request/response schemas
 │   │   └── services/
 │   │       ├── agent.py                 # HCP CRM LangGraph workflow
 │   │       ├── complaint_agent.py       # QA Complaint Chat LangGraph workflow
 │   │       └── complaint_intake_workflow.py # QA Document Extraction pipeline
 │   ├── requirements.txt                 # Python dependency configurations
-│   └── .env                             # Application credentials (GROQ_API_KEY)
-└── frontend/
-    ├── src/
-    │   ├── components/                  # Left-side Forms & Right-side Chat UI
-    │   ├── redux/                       # Centralized Redux state management
-    │   ├── App.jsx                      # Core UI shell wrapper view layout
-    │   └── main.jsx                     # Vite DOM execution mount point
-    ├── package.json                     # Frontend dependencies configuration
-    └── tailwind.config.js               # Responsive CSS framework variables
+│   └── .env.example                     # Backend environment variable template
+├── frontend/
+│   ├── src/
+│   │   ├── components/                  # Forms, chat assistants & intake UI
+│   │   ├── config/
+│   │   │   └── api.js                   # API base URL (VITE_API_URL)
+│   │   ├── pages/                       # Dashboard & ComplaintDashboard views
+│   │   ├── redux/                       # Centralized Redux state management
+│   │   ├── App.jsx                      # Core UI shell wrapper view layout
+│   │   └── main.jsx                     # Vite DOM execution mount point
+│   ├── .env.example                     # Frontend environment variable template
+│   ├── vercel.json                      # Vercel production build configuration
+│   ├── package.json                     # Frontend dependencies configuration
+│   └── vite.config.js                   # Vite build & env configuration
+├── render.yaml                          # Render Blueprint (backend + Postgres)
+└── docker-compose.yml                   # Optional local Postgres service
 ```
 
 ---
@@ -93,10 +108,19 @@ cd backend
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in the root of the `backend/` folder:
+Create a `.env` file in the root of the `backend/` folder (or copy from `.env.example`):
+
 ```env
 GROQ_API_KEY=your_actual_groq_api_key
+DATABASE_URL=sqlite:///./crm.db
+CORS_ORIGINS=*
 ```
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GROQ_API_KEY` | Yes | Groq API key for AI features |
+| `DATABASE_URL` | No | Defaults to SQLite (`sqlite:///./crm.db`) for local dev |
+| `CORS_ORIGINS` | No | Comma-separated frontend URLs; use `*` for local dev |
 
 Start the Uvicorn development server:
 ```bash
@@ -105,14 +129,68 @@ uvicorn app.main:app --reload --port 8000
 > **Note:** The FastAPI backend will spin up at `http://localhost:8000`
 
 ### 3. Frontend Setup (React)
-Open a new terminal window or tab, install the packages, and run the Vite server:
+Open a new terminal window or tab, install the packages, configure the environment, and run the Vite server:
 
 ```bash
 cd frontend
 npm install
+```
+
+Copy the environment template and point the frontend at your local backend:
+
+```bash
+cp .env.example .env.local
+```
+
+The default `.env.local` value connects to the local FastAPI server:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 > **Note:** The React frontend dashboard container will launch at `http://localhost:5173`
+
+---
+
+## 🚀 Production Deployment
+
+The project is configured for a split deployment: **Vercel** (frontend) + **Render** (backend).
+
+### Deploy Backend (Render)
+
+1. Push this repository to GitHub.
+2. In [Render](https://render.com), create a new **Blueprint** and connect the repo — it will read `render.yaml`.
+3. Set the following environment variables in the Render dashboard:
+   - `GROQ_API_KEY` — your Groq API key
+   - `CORS_ORIGINS` — your Vercel frontend URL (e.g. `https://your-app.vercel.app`)
+4. Render will provision a Postgres database and wire `DATABASE_URL` automatically via the blueprint.
+
+Production start command (already defined in `render.yaml`):
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+### Deploy Frontend (Vercel)
+
+1. In [Vercel](https://vercel.com), import the GitHub repository.
+2. Set the **Root Directory** to `frontend`.
+3. Add the environment variable:
+   - `VITE_API_URL` — your Render backend URL (e.g. `https://your-backend.onrender.com`)
+4. Deploy — Vercel uses `frontend/vercel.json` for the Vite build configuration.
+
+### Build Frontend Locally (Optional)
+
+```bash
+cd frontend
+npm run build
+npm run preview
+```
 
 ---
 

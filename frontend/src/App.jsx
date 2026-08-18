@@ -4,7 +4,7 @@ import ComplaintDashboard from './pages/ComplaintDashboard'
 import { Stethoscope, ShieldAlert } from 'lucide-react'
 
 function App() {
-  const [activeModule, setActiveModule] = useState('hcp')
+  const [activeModule, setActiveModule] = useState('qa')
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] font-inter flex flex-col">
